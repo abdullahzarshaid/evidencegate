@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# EvidenceGate working data - never commit real ledgers or evidence
+*.db
+*.db-journal
+*.db-wal
+demo/
+scratch/
+
+# OS
+.DS_Store
+Thumbs.db
