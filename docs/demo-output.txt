@@ -1,0 +1,17 @@
+REFUSED: cannot confirm a finding with no evidence
+confirmed F-01
+# EvidenceGate report - quickstart.db
+## G1 evidence integrity
+- verified: 1
+- missing: 0
+- hash mismatches: 0
+## G2 CVSS recomputation
+- defects: 0
+## G3 HTTP capture structure
+- matched: 1/1
+## G4 scope (in-scope: example.test)
+- out-of-scope evidence hosts: 0
+## G5 secret material in evidence
+## VERDICT
+READY
+READY means configured checks passed, not analyst approval or proof of vulnerability.

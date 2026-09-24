@@ -19,7 +19,7 @@ VECTOR = "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"  # scores 6.5 (MEDIUM)
 
 
 def run(*args, expect=None):
-    print(f"\n$ evidencegate {' '.join(args)}")
+    print(f"\n$ evidencegate {' '.join(args)}", flush=True)
     rc = subprocess.call([sys.executable, str(TOOL), *args])
     if expect is not None and rc != expect:
         raise SystemExit(f"unexpected exit code {rc} (wanted {expect})")
@@ -27,9 +27,9 @@ def run(*args, expect=None):
 
 
 def demonstrate(DB):
-    run("init", str(DB))
+    run("init", str(DB), expect=0)
     run("add-finding", str(DB), "--id", "F-01", "--title", "IDOR on /account",
-        "--severity", "MEDIUM", "--cvss", VECTOR)
+        "--severity", "MEDIUM", "--cvss", VECTOR, expect=0)
 
     print("\n# The database will not let a finding be confirmed with no evidence:")
     run("confirm", str(DB), "--id", "F-01", expect=1)
@@ -38,7 +38,7 @@ def demonstrate(DB):
     run("add-evidence", str(DB), "--finding", "F-01",
         "--file", str(EVID / "idor-account.txt"), "--kind", "http", expect=0)
     run("confirm", str(DB), "--id", "F-01", expect=0)
-    run("list", str(DB))
+    run("list", str(DB), expect=0)
 
     print("\n# Run the configured deterministic checks:")
     run("gate", str(DB), "--evidence-root", str(EVID), "--in-scope", "example.test", "--include-subdomains", expect=0)

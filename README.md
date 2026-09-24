@@ -25,6 +25,8 @@ python examples/quickstart.py
 The demonstration rejects confirmation without evidence, attaches a synthetic HTTP capture and runs
 the gate. No assessment target is contacted. See `python evidencegate.py --help` for commands.
 
+[See the worked demonstration and verified output](examples/README.md).
+
 ## Assessment workflow
 
 ```bash

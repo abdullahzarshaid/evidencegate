@@ -1,5 +1,5 @@
-### IDOR on /account - a low-privileged user reads another account's record.
-### Captured with an intercepting proxy. Session cookie redacted before storing.
+### SYNTHETIC fixture: invented IDOR scenario, not a real capture or validated finding.
+### Illustrates package checks only; REDACTED is a placeholder, not a real session.
 
 GET /account?id=1002 HTTP/1.1
 Host: app.example.test
@@ -8,6 +8,5 @@ Accept: application/json
 
 HTTP/1.1 200 OK
 Content-Type: application/json
-Content-Length: 84
 
 {"id":1002,"name":"Another User","email":"victim@example.test","role":"member"}
