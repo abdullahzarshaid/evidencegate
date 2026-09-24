@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/architecture.svg" alt="EvidenceGate architecture" width="820">
+  <img src="docs/architecture.png" alt="EvidenceGate architecture" width="820">
 </p>
 
 <h1 align="center">EvidenceGate</h1>
