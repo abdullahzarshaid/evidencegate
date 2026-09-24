@@ -2,7 +2,6 @@
 
 **Repeatable evidence-package checks for security assessments.**
 
-[![Tests](https://github.com/abdullahzarshaid/evidencegate/actions/workflows/tests.yml/badge.svg)](https://github.com/abdullahzarshaid/evidencegate/actions/workflows/tests.yml)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![License MIT](https://img.shields.io/badge/License-MIT-green)
 
@@ -74,8 +73,8 @@ python -m unittest discover -v
 ```
 
 The suite includes normal operations, malformed vectors, scope tricks, missing/duplicate hosts,
-path traversal and ledger-lifecycle cases. Symlink creation can be unavailable on Windows; CI also
-tests Linux. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+path traversal and ledger-lifecycle cases. The symlink test skips when the operating system does not
+permit symlink creation. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## License
 
