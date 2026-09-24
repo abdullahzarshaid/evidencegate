@@ -5,9 +5,9 @@ A security finding is only as good as the proof behind it. EvidenceGate keeps ev
 finding and its evidence in a small SQLite ledger, and enforces one rule at the
 database level: **you cannot mark a finding "confirmed" unless it has a hashed
 evidence record.** A separate, deterministic gate then re-verifies the whole package -
-evidence integrity, CVSS scoring, and whether the proof is real - and prints a single
-READY / NOT READY verdict. Builder and reviewer run the same gate and get the same
-answer, which ends the "is this good enough to report?" argument.
+evidence integrity, CVSS scoring, and HTTP capture structure - and prints a single
+READY / NOT READY verdict for the configured checks. Analyst approval of the
+vulnerability, impact, authorization and redaction remains necessary.
 
 Standard library only. No network, no AI, no telemetry.
 
@@ -27,8 +27,10 @@ import math
 import re
 import sqlite3
 import sys
+import ipaddress
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS findings (
@@ -51,7 +53,7 @@ CREATE TABLE IF NOT EXISTS evidence (
 );
 -- The gate, enforced by the database itself: a finding cannot become
 -- "confirmed" while it has zero evidence rows. This is the core guarantee -
--- it holds no matter which tool or person writes to the ledger.
+-- it assumes an intact schema, not a hostile database administrator.
 CREATE TRIGGER IF NOT EXISTS no_confirm_without_evidence
 BEFORE UPDATE OF status ON findings
 WHEN NEW.status = 'confirmed'
@@ -64,6 +66,33 @@ BEFORE INSERT ON findings
 WHEN NEW.status = 'confirmed'
 BEGIN
     SELECT RAISE(ABORT, 'a finding cannot be created already confirmed; add evidence then confirm');
+END;
+CREATE TRIGGER IF NOT EXISTS valid_hash_insert
+BEFORE INSERT ON evidence
+WHEN length(NEW.sha256) != 64 OR NEW.sha256 GLOB '*[^0-9a-fA-F]*'
+BEGIN
+    SELECT RAISE(ABORT, 'evidence requires a 64-character SHA-256 digest');
+END;
+CREATE TRIGGER IF NOT EXISTS valid_hash_update
+BEFORE UPDATE OF sha256 ON evidence
+WHEN length(NEW.sha256) != 64 OR NEW.sha256 GLOB '*[^0-9a-fA-F]*'
+BEGIN
+    SELECT RAISE(ABORT, 'evidence requires a 64-character SHA-256 digest');
+END;
+CREATE TRIGGER IF NOT EXISTS retain_confirmed_evidence_delete
+BEFORE DELETE ON evidence
+WHEN EXISTS (SELECT 1 FROM findings WHERE id=OLD.finding_id AND status='confirmed')
+ AND (SELECT count(*) FROM evidence WHERE finding_id=OLD.finding_id) <= 1
+BEGIN
+    SELECT RAISE(ABORT, 'return finding to draft before removing its last evidence');
+END;
+CREATE TRIGGER IF NOT EXISTS retain_confirmed_evidence_move
+BEFORE UPDATE OF finding_id ON evidence
+WHEN NEW.finding_id != OLD.finding_id
+ AND EXISTS (SELECT 1 FROM findings WHERE id=OLD.finding_id AND status='confirmed')
+ AND (SELECT count(*) FROM evidence WHERE finding_id=OLD.finding_id) <= 1
+BEGIN
+    SELECT RAISE(ABORT, 'return finding to draft before moving its last evidence');
 END;
 """
 
@@ -90,6 +119,11 @@ def cvss31(vector: str) -> float:
     s = m["S"]
     if s not in ("U", "C"):
         raise ValueError("scope must be U or C")
+    for key, values in w.items():
+        if m[key] not in values:
+            raise ValueError(f"invalid {key} metric")
+    if m['PR'] not in pr[s]:
+        raise ValueError("invalid PR metric")
     iss = 1 - ((1 - w["C"][m["C"]]) * (1 - w["I"][m["I"]]) * (1 - w["A"][m["A"]]))
     imp = 6.42 * iss if s == "U" else 7.52 * (iss - .029) - 3.25 * ((iss - .02) ** 15)
     if imp <= 0:
@@ -142,8 +176,7 @@ def ledger(db: str):
         conn.close()
 
 
-# Real proof = at least one evidence file that contains BOTH a request line and a
-# response status line. An open port or a screenshot alone is not proof.
+# Capture structure is not proof of vulnerability or authenticity.
 RE_REQUEST = re.compile(rb"^\s*(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+\S+", re.M)
 RE_RESPONSE = re.compile(rb"HTTP/[0-9.]+\s+\d{3}")
 RE_HOST = re.compile(rb"^\s*Host:\s*(\S+)", re.M | re.I)
@@ -153,6 +186,63 @@ SECRETS = {
     "AWS access key id": re.compile(rb"AKIA[0-9A-Z]{16}"),
     "private key block": re.compile(rb"BEGIN (?:RSA |EC )?PRIVATE KEY"),
 }
+
+
+def evidence_path(root: Path, value: str) -> Path:
+    """Resolve only regular evidence files contained by the declared root."""
+    root = root.resolve(strict=True)
+    path = (root / value).resolve(strict=True)
+    if not path.is_relative_to(root) or not path.is_file():
+        raise ValueError("evidence path is outside root or not a regular file")
+    return path
+
+
+def hostname(value: str) -> str:
+    """Normalize a Host authority, rejecting credentials, paths and invalid ports."""
+    if not value or any(c.isspace() for c in value) or any(c in value for c in '/\\?#@'):
+        raise ValueError("invalid host authority")
+    parsed = urlsplit('//' + value)
+    host = parsed.hostname
+    if not host or parsed.username or parsed.password:
+        raise ValueError("missing host")
+    if parsed.port is not None and not 1 <= parsed.port <= 65535:
+        raise ValueError("invalid port")
+    host = host.rstrip('.').encode('idna').decode('ascii').lower()
+    try:
+        return str(ipaddress.ip_address(host))
+    except ValueError:
+        if len(host) > 253 or not all(re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', part)
+                                    for part in host.split('.')):
+            raise ValueError("invalid hostname")
+        return host
+
+
+def scope_errors(data: bytes, allowed: str, subdomains: bool) -> list[str]:
+    """Check each HTTP/1 request header block; fail closed on unknown authority."""
+    errors = []
+    requests = list(re.finditer(rb'(?m)^(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS) ([^\r\n ]+) HTTP/1\.[01]\r?$', data))
+    if not requests:
+        return ['no supported HTTP/1 request headers']
+    for match in requests:
+        tail = data[match.end():]
+        end = re.search(rb'\r?\n\r?\n', tail)
+        if end is None:
+            errors.append('unterminated request headers'); continue
+        values = re.findall(rb'(?im)^Host:[ \t]*([^\r\n]+)', tail[:end.start()])
+        if len(values) != 1:
+            errors.append('missing or duplicate Host header'); continue
+        try:
+            host = hostname(values[0].decode('ascii').strip())
+            target = match.group(1).decode('ascii')
+            if not target.startswith('/') and target != '*':
+                url = urlsplit(target)
+                if url.scheme not in ('http', 'https') or hostname(url.netloc) != host:
+                    raise ValueError('request target and Host disagree')
+            if host != allowed and not (subdomains and host.endswith('.' + allowed)):
+                errors.append('host outside declared scope')
+        except (ValueError, UnicodeError):
+            errors.append('invalid or conflicting request authority')
+    return errors
 
 
 # ------------------------------------------------------------------ commands
@@ -190,8 +280,9 @@ def cmd_add_evidence(args) -> int:
             print(f"error: no such finding: {args.finding}", file=sys.stderr)
             return 2
         conn.execute(
-            "INSERT OR REPLACE INTO evidence (finding_id, path, sha256, kind, added_utc) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO evidence (finding_id, path, sha256, kind, added_utc) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(finding_id,path) DO UPDATE SET "
+            "sha256=excluded.sha256, kind=excluded.kind, added_utc=excluded.added_utc",
             (args.finding, str(args.file), digest, args.kind, now()))
     return _done(f"attached evidence {args.file} to {args.finding}  sha256={digest[:16]}...")
 
@@ -224,16 +315,20 @@ def _gate(args, root: Path, conn: sqlite3.Connection) -> int:
     lines: list[str] = [f"# EvidenceGate report - {Path(args.db).name}\n"]
 
     confirmed = [f for f in findings if f["status"] == "confirmed"]
+    if not confirmed:
+        blockers.append("no confirmed findings to evaluate")
     lines.append(f"## Findings\n- total: {len(findings)}\n- confirmed: {len(confirmed)}\n")
 
     # G1 - evidence integrity: every stored hash must still match the file on disk.
     missing = bad = ok = 0
     for f in confirmed:
         for e in conn.execute("SELECT * FROM evidence WHERE finding_id = ?", (f["id"],)):
-            fp = root / e["path"]
-            if not fp.is_file():
+            try:
+                fp = evidence_path(root, e["path"])
+            except (OSError, ValueError, RuntimeError):
                 missing += 1
-            elif sha256_file(fp) != e["sha256"]:
+                continue
+            if sha256_file(fp).lower() != e["sha256"].lower():
                 bad += 1
             else:
                 ok += 1
@@ -257,28 +352,28 @@ def _gate(args, root: Path, conn: sqlite3.Connection) -> int:
     if cvss_bad:
         blockers.append(f"G2 CVSS defects: {len(cvss_bad)}")
 
-    # G3 - real proof: each confirmed finding needs a request+response capture.
+    # G3 - capture structure; not confirmation of a vulnerability.
     no_proof, oos = [], []
-    want = args.in_scope.encode() if args.in_scope else None
+    want = hostname(args.in_scope) if args.in_scope else None
     for f in confirmed:
         has_proof = False
         for e in conn.execute("SELECT * FROM evidence WHERE finding_id = ?", (f["id"],)):
-            fp = root / e["path"]
-            if not fp.is_file():
+            try:
+                fp = evidence_path(root, e["path"])
+                b = fp.read_bytes()
+            except (OSError, ValueError, RuntimeError):
                 continue
-            b = fp.read_bytes()
+            if want:
+                for error in scope_errors(b, want, args.include_subdomains):
+                    oos.append((f['id'], error))
             if RE_REQUEST.search(b) and RE_RESPONSE.search(b):
                 has_proof = True
-                if want:
-                    for host in set(RE_HOST.findall(b)):
-                        if want not in host:
-                            oos.append((f["id"], host.decode(errors="replace")))
         if not has_proof:
             no_proof.append(f["id"])
-    lines.append(f"\n## G3 real request/response proof\n- proven: {len(confirmed) - len(no_proof)}/{len(confirmed)}\n")
+    lines.append(f"\n## G3 HTTP capture structure\n- matched: {len(confirmed) - len(no_proof)}/{len(confirmed)}\n")
     if no_proof:
-        lines.append(f"  - no raw proof: {', '.join(no_proof)}\n")
-        blockers.append(f"G3 confirmed findings without request/response proof: {len(no_proof)}")
+        lines.append(f"  - no supported capture: {', '.join(no_proof)}\n")
+        blockers.append(f"G3 confirmed findings without request/response structure: {len(no_proof)}")
 
     # G4 - scope (optional): confirmed findings must not rest on out-of-scope hosts.
     if want:
@@ -290,7 +385,13 @@ def _gate(args, root: Path, conn: sqlite3.Connection) -> int:
 
     # G5 - secrets: raw proof often carries live tokens; flag them before release.
     sec_total = 0
-    files = [p for p in root.rglob("*") if p.is_file()]
+    files = []
+    for candidate in root.rglob('*'):
+        if candidate.is_file():
+            try:
+                files.append(evidence_path(root, str(candidate)))
+            except (OSError, ValueError, RuntimeError):
+                blockers.append('G5 path outside evidence root or unreadable')
     lines.append("\n## G5 secret material in evidence\n")
     for label, rx in SECRETS.items():
         hits = [str(p.relative_to(root)) for p in files if rx.search(p.read_bytes())]
@@ -304,6 +405,7 @@ def _gate(args, root: Path, conn: sqlite3.Connection) -> int:
     lines.append("\n## VERDICT\n")
     lines.append("READY\n" if ready else "NOT READY\n")
     lines += [f"- BLOCKER: {b}\n" for b in blockers]
+    lines.append("\nREADY means configured checks passed, not analyst approval or proof of vulnerability.\n")
     report = "".join(lines)
     if args.out:
         Path(args.out).write_text(report, encoding="utf-8")
@@ -340,6 +442,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("gate", help="run the deterministic release gate")
     s.add_argument("db"); s.add_argument("--evidence-root", default="."); s.add_argument("--in-scope")
+    s.add_argument("--include-subdomains", action="store_true", help="explicitly allow subdomains of --in-scope")
     s.add_argument("--out"); s.set_defaults(func=cmd_gate)
 
     s = sub.add_parser("list", help="list findings")
@@ -349,7 +452,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (OSError, ValueError, sqlite3.Error) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

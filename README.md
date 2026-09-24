@@ -1,146 +1,82 @@
-<p align="center">
-  <img src="docs/architecture.png" alt="EvidenceGate architecture" width="820">
-</p>
+# EvidenceGate
 
-<h1 align="center">EvidenceGate</h1>
+**Repeatable evidence-package checks for security assessments.**
 
-<p align="center"><b>A security finding is only as good as the proof behind it.</b><br>
-EvidenceGate is a tiny, dependency-free tool that won't let a finding be called
-"confirmed" without hashed evidence — and re-verifies the whole package on the way out.</p>
+[![Tests](https://github.com/abdullahzarshaid/evidencegate/actions/workflows/tests.yml/badge.svg)](https://github.com/abdullahzarshaid/evidencegate/actions/workflows/tests.yml)
+![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)
+![License MIT](https://img.shields.io/badge/License-MIT-green)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT">
-  <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="Python 3.8+">
-  <img src="https://img.shields.io/badge/dependencies-none%20(stdlib)-brightgreen.svg" alt="no deps">
-  <img src="https://img.shields.io/badge/tests-10%20passing-brightgreen.svg" alt="tests">
-</p>
+EvidenceGate keeps findings and evidence references in SQLite, then checks hashes, supplied CVSS
+vectors, HTTP capture structure, optional hostname scope and selected secret patterns. It uses only
+Python's standard library and makes no network requests.
 
----
+**READY means configured checks passed. It does not establish vulnerability, authenticity,
+authorization, complete redaction or analyst approval.**
 
-## The problem
+![EvidenceGate architecture](docs/architecture.png)
 
-Penetration-test and vulnerability-assessment reports fall apart in review for the same
-boring reasons, over and over:
-
-- a finding marked **confirmed** that has no capture behind it — just a memory of an error;
-- a **CVSS score** typed by hand that the vector doesn't actually produce;
-- a proof-of-concept **reconstructed from notes** instead of the real request and response;
-- a screenshot from an **out-of-scope** host;
-- a raw capture shipped to the client with a **live token or cookie** still in it.
-
-Reviewers catch these one at a time, by hand, and builder and reviewer argue about whether
-the package is "good enough." EvidenceGate turns that argument into a command.
-
-## The idea
-
-Two guarantees, one small tool:
-
-1. **The ledger won't lie.** Findings and their evidence live in a SQLite database. A
-   database trigger — not application code you can forget to call — refuses to move a
-   finding to `confirmed` unless it has at least one hashed evidence row. The rule holds no
-   matter what writes to the database.
-
-2. **The gate is deterministic.** A single `gate` command re-hashes every file, recomputes
-   every CVSS score, checks that each confirmed finding has a real request **and** response,
-   confirms the evidence is in scope, and scans for leaked secrets. It prints one verdict:
-   **READY** or **NOT READY**. The builder and the reviewer run the same command and get the
-   same answer — so "is this ready to send?" stops being a matter of opinion.
-
-## Install
-
-No dependencies. Python 3.8+ and one file.
+## Try it with synthetic evidence
 
 ```bash
 git clone https://github.com/abdullahzarshaid/evidencegate.git
 cd evidencegate
-python evidencegate.py --help
-```
-
-## Quickstart
-
-```bash
 python examples/quickstart.py
 ```
 
-Or by hand:
+The demonstration rejects confirmation without evidence, attaches a synthetic HTTP capture and runs
+the gate. No assessment target is contacted. See `python evidencegate.py --help` for commands.
+
+## Assessment workflow
 
 ```bash
-# 1. start a ledger for the engagement
 python evidencegate.py init assessment.db
-
-# 2. record a finding (starts as a draft)
-python evidencegate.py add-finding assessment.db --id F-01 \
-    --title "IDOR on /account" --severity MEDIUM \
-    --cvss "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"
-
-# 3. try to confirm it with no proof  ->  the database refuses
+python evidencegate.py add-finding assessment.db --id F-01 --title "Candidate IDOR" --severity MEDIUM --cvss "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"
+python evidencegate.py add-evidence assessment.db --finding F-01 --file proof/idor.txt --kind http
 python evidencegate.py confirm assessment.db --id F-01
-#   REFUSED: cannot confirm a finding with no evidence
-
-# 4. attach the real capture (it is hashed on the way in), then confirm
-python evidencegate.py add-evidence assessment.db --finding F-01 \
-    --file proof/idor.txt --kind http
-python evidencegate.py confirm assessment.db --id F-01
-#   confirmed F-01
-
-# 5. run the gate before you package anything
 python evidencegate.py gate assessment.db --evidence-root . --in-scope example.test
 ```
 
-A clean run ends with:
+Use your own authorized, reviewed evidence in `proof/idor.txt`. The `confirmed` status is a recorded
+analyst decision; the tool enforces supporting evidence presence, not the truth of that decision.
 
-```
-## VERDICT
-READY
-```
+| Check | What it establishes |
+|---|---|
+| G1 — integrity | Referenced evidence for confirmed findings matches its recorded hash and remains inside the evidence root |
+| G2 — CVSS | Supplied CVSS 3.1 base vectors are valid and agree with supplied severity |
+| G3 — HTTP structure | A request line and response status occur in supporting evidence |
+| G4 — scope | Supported HTTP/1 request hosts match the optional declared hostname policy |
+| G5 — secret patterns | Selected JWT, bearer-token, AWS-key and private-key patterns were checked |
 
-and a failing one tells you exactly why:
+Missing CVSS vectors are not inferred. No `--in-scope` means scope was **not checked**.
+An empty confirmed set does not pass. Exit codes: `0` checks passed, `1` checks failed, `2` invalid input.
 
-```
-## VERDICT
-NOT READY
-- BLOCKER: G1 evidence integrity: 1 tampered
-- BLOCKER: G2 CVSS defects: 1
-```
+## Scope and evidence boundaries
 
-## What the gate checks
+`--in-scope example.test` permits that hostname, normalizing case and an optional port. Add
+`--include-subdomains` only if authorization covers subdomains too. Substring lookalikes do not match.
+Missing, duplicate or conflicting request authorities fail. This is not a port/path/CIDR policy engine;
+HTTP/2 binary captures and non-HTTP proof formats are outside the HTTP checks.
 
-| Gate | Check | Why it matters |
-|------|-------|----------------|
-| **G1** | Re-hash every evidence file against the value stored when it was attached | Detects a file that changed — or went missing — after it was recorded |
-| **G2** | Recompute the CVSS 3.1 base score from the vector | A hand-typed severity that the vector doesn't support never ships |
-| **G3** | Each confirmed finding has a capture containing a request line **and** a response status | A rejected attempt, a hunch, or a lone screenshot is not proof |
-| **G4** | Evidence hosts are inside the declared scope *(optional, `--in-scope`)* | Out-of-scope evidence is caught before the client sees it |
-| **G5** | Scan evidence for JWTs, bearer tokens, AWS keys and private keys | Live secrets get flagged for redaction before sharing |
+Relative evidence paths resolve from `--evidence-root`; absolute paths must still resolve inside it.
+Keep the ledger and trusted hash reference protected separately. Hashes are not signatures: a writer
+who changes both evidence and ledger can defeat an integrity comparison. Avoid concurrent writes.
+Secret detection is heuristic; review cookies, personal information and other credentials manually.
 
-Exit code is `0` for READY and `1` for NOT READY, so it drops straight into CI or a
-pre-delivery hook.
+SQLite triggers require evidence before confirmation, validate hash format and prevent deleting or
+moving the final evidence row of a confirmed finding. They assume an intact schema and trusted writer.
+For an existing ledger, back it up and run `init` to install the added non-destructive triggers, then run
+the gate. Existing labels and hashes are not automatically changed.
 
-## Design notes
-
-- **Standard library only.** `sqlite3`, `hashlib`, `re`, `argparse`. Nothing to install,
-  nothing phoning home, no network access.
-- **The CVSS 3.1 math is the published FIRST specification**, verified against the
-  specification's own worked examples in the test suite.
-- **Evidence lives on disk; the ledger stores paths and hashes.** Point `--evidence-root`
-  at the directory that holds only your captures.
-- **It refuses; it never rewrites.** EvidenceGate blocks a bad package. Fixing the finding,
-  the score or the redaction stays a human decision.
-
-## Tests
+## Tests and contributions
 
 ```bash
-python test_evidencegate.py        # or: python -m pytest -q
+python -m unittest discover -v
 ```
 
-Ten tests cover the CVSS math, the database trigger, and every gate.
-
-## Scope and intent
-
-Built for practitioners running **authorized** security assessments who want their findings
-to survive scrutiny. It verifies the discipline of a report; it does not attack anything.
+The suite includes normal operations, malformed vectors, scope tricks, missing/duplicate hosts,
+path traversal and ledger-lifecycle cases. Symlink creation can be unavailable on Windows; CI also
+tests Linux. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE) © Abdullah Bin Zarshaid. Use it, fork it, build on it. If it saved you a
-review cycle, a ⭐ helps others find it.
+[MIT](LICENSE). Contributions and bug reports should use synthetic examples, never private evidence.
