@@ -40,15 +40,15 @@
 
   <g font-size="12.5" fill="#c9d1d9">
     <rect x="512" y="176" width="346" height="26" rx="6" fill="#0d1117" stroke="#30363d"/>
-    <text x="524" y="193"><tspan fill="#58a6ff" font-weight="700">G1</tspan>  evidence integrity — re-hash every file</text>
+    <text x="524" y="193"><tspan fill="#58a6ff" font-weight="700">G1</tspan>  evidence integrity, re-hash every file</text>
     <rect x="512" y="208" width="346" height="26" rx="6" fill="#0d1117" stroke="#30363d"/>
-    <text x="524" y="225"><tspan fill="#58a6ff" font-weight="700">G2</tspan>  CVSS 3.1 recomputed — severity must match</text>
+    <text x="524" y="225"><tspan fill="#58a6ff" font-weight="700">G2</tspan>  CVSS 3.1 recomputed, severity must match</text>
     <rect x="512" y="240" width="346" height="26" rx="6" fill="#0d1117" stroke="#30363d"/>
     <text x="524" y="257"><tspan fill="#58a6ff" font-weight="700">G3</tspan>  HTTP request + response structure</text>
     <rect x="512" y="272" width="346" height="26" rx="6" fill="#0d1117" stroke="#30363d"/>
-    <text x="524" y="289"><tspan fill="#58a6ff" font-weight="700">G4</tspan>  scope — evidence host is in-scope</text>
+    <text x="524" y="289"><tspan fill="#58a6ff" font-weight="700">G4</tspan>  scope, evidence host is in-scope</text>
     <rect x="512" y="304" width="346" height="26" rx="6" fill="#0d1117" stroke="#30363d"/>
-    <text x="524" y="321"><tspan fill="#58a6ff" font-weight="700">G5</tspan>  secrets — flag tokens/keys before sharing</text>
+    <text x="524" y="321"><tspan fill="#58a6ff" font-weight="700">G5</tspan>  secrets, flag tokens/keys before sharing</text>
   </g>
 
   <rect x="512" y="344" width="168" height="46" rx="8" fill="#0d1117" stroke="#39d353" stroke-width="1.5"/>

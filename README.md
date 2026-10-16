@@ -42,11 +42,11 @@ analyst decision; the tool enforces supporting evidence presence, not the truth 
 
 | Check | What it establishes |
 |---|---|
-| G1 — integrity | Referenced evidence for confirmed findings matches its recorded hash and remains inside the evidence root |
-| G2 — CVSS | Supplied CVSS 3.1 base vectors are valid and agree with supplied severity |
-| G3 — HTTP structure | A request line and response status occur in supporting evidence |
-| G4 — scope | Supported HTTP/1 request hosts match the optional declared hostname policy |
-| G5 — secret patterns | Selected JWT, bearer-token, AWS-key and private-key patterns were checked |
+| G1: integrity | Referenced evidence for confirmed findings matches its recorded hash and remains inside the evidence root |
+| G2: CVSS | Supplied CVSS 3.1 base vectors are valid and agree with supplied severity |
+| G3: HTTP structure | A request line and response status occur in supporting evidence |
+| G4: scope | Supported HTTP/1 request hosts match the optional declared hostname policy |
+| G5: secret patterns | Selected JWT, bearer-token, AWS-key and private-key patterns were checked |
 
 Missing CVSS vectors are not inferred. No `--in-scope` means scope was **not checked**.
 An empty confirmed set does not pass. Exit codes: `0` checks passed, `1` checks failed, `2` invalid input.
