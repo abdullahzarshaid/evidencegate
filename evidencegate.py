@@ -32,6 +32,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
+__version__ = "1.0.0"
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS findings (
     id            TEXT PRIMARY KEY,
@@ -424,6 +426,7 @@ def cmd_list(args) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="evidencegate", description=__doc__.splitlines()[0])
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("init", help="create a new ledger database")

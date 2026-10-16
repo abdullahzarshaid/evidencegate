@@ -2,8 +2,10 @@
 
 **Repeatable evidence-package checks for security assessments.**
 
+[![Tests](https://github.com/abdullahzarshaid/evidencegate/actions/workflows/tests.yml/badge.svg)](https://github.com/abdullahzarshaid/evidencegate/actions/workflows/tests.yml)
 ![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![License MIT](https://img.shields.io/badge/License-MIT-green)
+[![Release](https://img.shields.io/github/v/release/abdullahzarshaid/evidencegate?label=release&color=14314a)](https://github.com/abdullahzarshaid/evidencegate/releases/latest)
 
 EvidenceGate keeps findings and evidence references in SQLite, then checks hashes, supplied CVSS
 vectors, HTTP capture structure, optional hostname scope and selected secret patterns. It uses only
@@ -11,6 +13,10 @@ Python's standard library and makes no network requests.
 
 **READY means configured checks passed. It does not establish vulnerability, authenticity,
 authorization, complete redaction or analyst approval.**
+
+![Terminal recording: confirm is refused with no evidence, succeeds after a hashed capture is attached, then the gate prints READY](docs/demo.gif)
+
+*Typeset from a verified run of `examples/quickstart.py`; paths normalised, gate report condensed to one line per check. The capture is invented. Project page: [abdullahzarshaid.github.io/evidencegate](https://abdullahzarshaid.github.io/evidencegate/).*
 
 ![EvidenceGate architecture](docs/architecture.png)
 
@@ -76,7 +82,13 @@ python -m unittest discover -v
 
 The suite includes normal operations, malformed vectors, scope tricks, missing/duplicate hosts,
 path traversal and ledger-lifecycle cases. The symlink test skips when the operating system does not
-permit symlink creation. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+permit symlink creation. The suite and the quickstart run on GitHub Actions for every push, on Linux,
+Windows and macOS with Python 3.10 and 3.12. See [CONTRIBUTING.md](CONTRIBUTING.md),
+[SECURITY.md](SECURITY.md) and [CHANGELOG.md](CHANGELOG.md).
+
+## Cite
+
+Use the **Cite this repository** button on GitHub, or the entry in [CITATION.cff](CITATION.cff). The release tag is the version to cite.
 
 ## License
 

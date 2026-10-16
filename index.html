@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EvidenceGate: the ledger that refuses to confirm a finding with no evidence</title>
+<meta name="description" content="Repeatable evidence-package checks for security assessments: a SQLite ledger whose triggers refuse confirmation without hashed evidence, then integrity, CVSS 3.1, HTTP capture structure, scope and secret-pattern checks. Standard library only.">
+<style>:root{--bg:#0b1220;--card:#121c2e;--ink:#e6edf3;--muted:#acbace;--acc:#59ddbe;--line:#26344a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:6vh 24px 48px}.eyebrow{letter-spacing:3px;font-size:12px;color:var(--acc);margin:0 0 10px}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.15;margin:0 0 6px}h2.sub{font-weight:400;color:var(--muted);font-size:clamp(18px,2.6vw,24px);margin:0 0 18px}
+p.lead{max-width:800px;color:var(--muted)}.btns{display:flex;flex-wrap:wrap;gap:12px;margin:22px 0 10px}
+.button{display:inline-block;padding:13px 22px;border:1px solid var(--acc);border-radius:9px;color:var(--acc);text-decoration:none;font-weight:600}.button.primary{background:var(--acc);color:#07111a}.button:hover{filter:brightness(1.08)}
+.meta{color:var(--muted);font-size:14px;margin:6px 0 30px}h3{margin:38px 0 12px;font-size:22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;color:var(--ink)}.card small{display:block;color:var(--acc);font-size:12px;letter-spacing:2px;margin:0 0 4px}.card b{display:block;font-size:18px}
+.card span{color:var(--muted);font-size:14px;display:block;margin-top:6px}
+img.wide{width:100%;border:1px solid var(--line);border-radius:12px;display:block}p.cap{color:var(--muted);font-size:14px;margin:8px 0 0}
+pre{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;overflow:auto;font:14px/1.55 Consolas,"Cascadia Mono",Menlo,monospace;color:var(--ink);margin:0}pre .c{color:#8ea0b8}
+.note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;color:var(--muted);margin-top:28px}.note ul{margin:8px 0 0;padding-left:20px}
+footer{margin-top:44px;border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}footer a,.note a,p.cap a,.card a{color:var(--acc)}</style></head><body><div class="wrap">
+<p class="eyebrow">EVIDENCE INTEGRITY · CVSS 3.1 · CAPTURE STRUCTURE · SCOPE · SECRET PATTERNS</p>
+<h1>EvidenceGate</h1>
+<h2 class="sub">The ledger that refuses to confirm a finding with no evidence</h2>
+<p class="lead">A security finding is only as good as the proof behind it. EvidenceGate keeps findings and evidence references in a small SQLite ledger and enforces one rule at the database level: a finding cannot be marked confirmed unless it has a hashed evidence record. A separate, deterministic gate then re-checks the whole package and prints a single READY or NOT READY verdict for the configured checks.</p>
+<div class="btns">
+  <a class="button primary" href="https://github.com/abdullahzarshaid/evidencegate">Source on GitHub</a>
+  <a class="button" href="https://github.com/abdullahzarshaid/evidencegate/releases/latest">Download the release</a>
+  <a class="button" href="https://github.com/abdullahzarshaid/evidencegate/blob/main/examples/README.md">Worked demonstration</a>
+  <a class="button" href="https://abdullahzarshaid.com/">Author site</a>
+</div>
+<p class="meta">MIT licensed · Python 3.10+, standard library only · SQLite ledger · no network requests, no telemetry · 21 tests on Linux, Windows and macOS on every push · Version 1.0.0</p>
+<img class="wide" src="docs/demo.gif" alt="Terminal recording: confirm is refused with no evidence, succeeds after a hashed capture is attached, then the gate prints READY">
+<p class="cap">Typeset from a verified run of <code>python examples/quickstart.py</code>. Local paths are normalised and the gate report is condensed to one line per check. The capture is invented, not taken from a service, and no target is contacted.</p>
+<h3>How it works</h3>
+<img class="wide" src="docs/architecture.png" alt="EvidenceGate architecture: findings and evidence in a SQLite ledger with triggers, then five deterministic checks and a verdict">
+<h3>The five checks</h3>
+<div class="grid">
+  <div class="card"><small>G1</small><b>Evidence integrity</b><span>Referenced evidence for confirmed findings matches its recorded SHA-256 hash and resolves inside the evidence root. Path traversal and symlink escapes are rejected.</span></div>
+  <div class="card"><small>G2</small><b>CVSS recomputation</b><span>Supplied CVSS 3.1 base vectors are valid and the recomputed score agrees with the supplied severity. Missing vectors are never inferred.</span></div>
+  <div class="card"><small>G3</small><b>HTTP capture structure</b><span>A request line and a response status occur in the supporting evidence, so a "capture" that is only a narrative does not pass as proof.</span></div>
+  <div class="card"><small>G4</small><b>Scope</b><span>Request hosts match the declared hostname policy, with case and port normalised. Substring lookalikes do not match. No <code>--in-scope</code> means scope was not checked, and the report says so.</span></div>
+  <div class="card"><small>G5</small><b>Secret patterns</b><span>Raw JWTs, bearer tokens, AWS access key ids and private-key blocks are flagged before a package leaves the analyst's machine. Heuristic: cookies and personal data still need a manual review.</span></div>
+  <div class="card"><small>LEDGER</small><b>Triggers, not conventions</b><span>SQLite triggers require evidence before confirmation, validate the hash format and prevent deleting or moving the final evidence row of a confirmed finding.</span></div>
+</div>
+<h3>Assessment workflow</h3>
+<pre>python evidencegate.py init assessment.db
+python evidencegate.py add-finding assessment.db --id F-01 --title "Candidate IDOR" --severity MEDIUM --cvss "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N"
+python evidencegate.py add-evidence assessment.db --finding F-01 --file proof/idor.txt --kind http
+python evidencegate.py confirm assessment.db --id F-01
+python evidencegate.py gate assessment.db --evidence-root . --in-scope example.test
+
+<span class="c"># Exit codes: 0 checks passed, 1 checks failed, 2 invalid input</span></pre>
+<div class="note"><b>What READY means, and does not.</b> READY means the configured checks passed. It does not establish vulnerability, authenticity, authorization, complete redaction or analyst approval. The <code>confirmed</code> status is a recorded analyst decision; the tool enforces that supporting evidence is present, not the truth of that decision. Hashes are not signatures: keep the ledger and a trusted hash reference protected separately. HTTP/2 binary captures and non-HTTP proof formats are outside the HTTP checks. Cite the tool with the repository's <code>CITATION.cff</code>.</div>
+<footer>Original work by <a href="https://abdullahzarshaid.com/">Abdullah Bin Zarshaid</a>. MIT licensed. Consultancy and training under <a href="https://abzsecure.com/">ABZSECURE</a>. Questions: <a href="mailto:abdullahbinzarshaid@gmail.com">abdullahbinzarshaid@gmail.com</a> or a GitHub issue with a synthetic, sanitized example, never live credentials or client evidence.</footer>
+</div></body></html>

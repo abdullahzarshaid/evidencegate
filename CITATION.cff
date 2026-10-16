@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If EvidenceGate contributes to research or an assessment write-up, please cite it as below."
+title: "EvidenceGate: repeatable evidence-package checks for security assessments"
+type: software
+version: "1.0.0"
+date-released: "2026-10-17"
+license: MIT
+repository-code: "https://github.com/abdullahzarshaid/evidencegate"
+url: "https://abdullahzarshaid.github.io/evidencegate/"
+authors:
+  - family-names: "Bin Zarshaid"
+    given-names: "Abdullah"
+    orcid: "https://orcid.org/0009-0000-8354-5177"
+keywords:
+  - security-assessment
+  - evidence
+  - cvss
+  - penetration-testing
+  - sqlite
+  - python
+abstract: "EvidenceGate keeps findings and evidence references in a SQLite ledger whose triggers refuse to confirm a finding with no hashed evidence, then runs deterministic checks on integrity, CVSS 3.1 vectors, HTTP capture structure, optional hostname scope and selected secret patterns. Standard library only; no network requests."
