@@ -1,5 +1,12 @@
 # EvidenceGate
 
+<p align="center">
+  <a href="https://abdullahzarshaid.com"><img src="docs/abz-logo.png" alt="Abdullah Bin Zarshaid" height="54"></a>
+</p>
+
+<p align="center"><a href="https://abdullahzarshaid.github.io/evidencegate/"><b>Open the live project page</b></a></p>
+
+
 **Repeatable evidence-package checks for security assessments.**
 
 [![Tests](https://github.com/abdullahzarshaid/evidencegate/actions/workflows/tests.yml/badge.svg)](https://github.com/abdullahzarshaid/evidencegate/actions/workflows/tests.yml)
