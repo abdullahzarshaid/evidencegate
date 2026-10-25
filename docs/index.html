@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EvidenceGate by Abdullah Bin Zarshaid</title>
+<meta name="description" content="Repeatable evidence-package checks for security assessments: a SQLite ledger that refuses to confirm a finding without hashed evidence, plus a deterministic readiness gate. MIT, standard library only.">
+<meta name="author" content="Abdullah Bin Zarshaid">
+<meta property="og:title" content="EvidenceGate">
+<meta property="og:description" content="Repeatable evidence-package checks for security assessments: a SQLite ledger that refuses to confirm a finding without hashed evidence, plus a deterministic readiness gate. MIT, standard library only.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0a1322">
+<link rel="icon" href="abz-logo.png" type="image/png">
+<style>
+:root{--bg:#0a1322;--bg2:#0e1a2e;--card:#121f36;--ink:#eaf1fb;--mut:#9fb2cc;--acc:#2e8bff;--cyan:#5bd2ff;--line:#22354a}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(1100px 560px at 88% -12%,rgba(46,139,255,.16),transparent 60%),radial-gradient(760px 420px at -6% 0%,rgba(91,210,255,.10),transparent 55%),var(--bg);color:var(--ink);font:16px/1.65 "Segoe UI","Helvetica Neue",Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--cyan)}.wrap{max-width:1000px;margin:0 auto;padding:0 20px}
+header.nav{position:sticky;top:0;z-index:10;background:rgba(10,19,34,.82);backdrop-filter:blur(10px);border-bottom:1px solid #1d2c45}
+header.nav .wrap{display:flex;align-items:center;gap:12px;height:62px}
+header.nav img{height:30px}header.nav b{font-size:14px;font-weight:700;letter-spacing:.3px}
+header.nav nav{margin-left:auto;display:flex;gap:18px}header.nav nav a{color:var(--mut);text-decoration:none;font-size:14px}header.nav nav a:hover{color:var(--cyan)}
+.hero{position:relative;padding:66px 0 26px;overflow:hidden}
+.hero .kick{color:var(--acc);font-weight:700;letter-spacing:3px;font-size:12px;text-transform:uppercase;margin:0 0 14px}
+.hero h1{font-size:clamp(34px,6vw,58px);line-height:1.05;margin:0 0 14px;letter-spacing:-1px;font-weight:800}
+.hero h1 span{background:linear-gradient(90deg,var(--acc),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.sub{color:var(--mut);font-size:19px;max-width:680px;margin:0 0 26px}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;font-size:15px;padding:12px 20px;border-radius:12px}
+.btn.primary{background:linear-gradient(90deg,var(--acc),#4f9dff);color:#06101f;box-shadow:0 10px 30px rgba(46,139,255,.35)}
+.btn.ghost{border:1px solid #2a3c5a;color:var(--ink)}.btn.ghost:hover{border-color:var(--acc);color:var(--cyan)}
+.traces{position:absolute;right:-20px;top:0;width:360px;height:100%;opacity:.5;pointer-events:none}
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:30px 0 20px}
+.card{background:var(--card);border:1px solid #1e2e49;border-radius:16px;padding:20px}
+.card h3{margin:0 0 6px;font-size:17px;color:var(--cyan)}.card p{margin:0;color:var(--mut);font-size:14px}
+.strip{background:var(--bg2);border:1px solid #1e2e49;border-radius:16px;padding:18px 22px;margin:24px 0;color:var(--mut);font-size:14px}
+.strip b{color:var(--ink)}
+footer{border-top:1px solid #1d2c45;margin-top:40px;padding:26px 0 50px;color:var(--mut);font-size:13px;text-align:center}
+footer a{color:var(--mut)}footer img{height:26px;vertical-align:middle;margin-bottom:8px}
+@media(max-width:620px){.traces{display:none}}
+</style>
+</head>
+<body>
+<header class="nav"><div class="wrap">
+  <a href="https://abdullahzarshaid.com" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit"><img src="abz-logo.png" alt="Abdullah Bin Zarshaid"><b>EvidenceGate</b></a>
+  <nav>
+    <a href="https://github.com/abdullahzarshaid/evidencegate">Source</a>
+    <a href="https://github.com/abdullahzarshaid">More tools</a>
+    <a href="https://abdullahzarshaid.com">abdullahzarshaid.com</a>
+  </nav>
+</div></header>
+<main class="wrap">
+  <section class="hero">
+    <svg class="traces" viewBox="0 0 360 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M120 0V90H210V180H300V300H360 M200 0V50H290V140H360 M40 0V40H130V130H250V210H360" stroke="#1f3a5c" stroke-width="2"/>
+      <circle cx="210" cy="90" r="5" fill="#5bd2ff"><animate attributeName="opacity" values="1;.3;1" dur="2.4s" repeatCount="indefinite"/></circle>
+      <circle cx="300" cy="300" r="5" fill="#2e8bff"><animate attributeName="opacity" values=".3;1;.3" dur="2.8s" repeatCount="indefinite"/></circle>
+      <circle cx="130" cy="130" r="5" fill="#5bd2ff"><animate attributeName="opacity" values="1;.4;1" dur="3.2s" repeatCount="indefinite"/></circle>
+    </svg>
+    <p class="kick">Assessment evidence quality</p>
+    <h1>No confirmed finding <span>without evidence.</span></h1>
+    <p class="sub">A single-file tool whose database refuses to mark a finding confirmed until a hashed evidence row exists, then runs a deterministic gate over integrity, CVSS, proof, scope and secrets, and prints READY or NOT READY.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/abdullahzarshaid/evidencegate/releases/latest">Download the latest release</a>
+      <a class="btn ghost" href="https://github.com/abdullahzarshaid/evidencegate">View the source</a>
+    </div>
+  </section>
+  <div class="feat"><div class="card"><h3>Enforced at the database</h3><p>A trigger blocks confirmation without a hashed evidence row. The rule lives below the app, not in it.</p></div><div class="card"><h3>Deterministic gate</h3><p>Re-hashes evidence, recomputes CVSS against the first spec, checks proof, scope and secrets.</p></div><div class="card"><h3>Single file</h3><p>Standard-library Python. Clone it, run it, read the ledger. No services to stand up.</p></div><div class="card"><h3>Honest by design</h3><p>READY or NOT READY with a clear reason and an exit code, so it fits a pipeline.</p></div></div>
+  <div class="strip"><b>How to use it.</b> Initialize a ledger, add findings and hashed evidence, then run the gate before a package leaves your hands. See the repository for the commands and a worked example.</div>
+</main>
+<footer>
+  <a href="https://abdullahzarshaid.com"><img src="abz-logo.png" alt="Abdullah Bin Zarshaid"></a><br>
+  Built by <a href="https://abdullahzarshaid.com">Abdullah Bin Zarshaid</a>. MIT licensed.
+  &nbsp;&middot;&nbsp; <a href="mailto:abdullahbinzarshaid@gmail.com">abdullahbinzarshaid@gmail.com</a>
+</footer>
+</body>
+</html>
